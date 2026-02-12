@@ -130,7 +130,7 @@ It:
 ## 🚀 How to Run Locally
 
 ```bash
-git clone <repo>
+git clone https://github.com/learninghub-official/genai-document-summarizer-rag.git
 cd GenAI_Compliance_Summarizer
 
 python -m venv venv
