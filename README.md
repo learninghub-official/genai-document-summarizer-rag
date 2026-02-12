@@ -1,127 +1,181 @@
-# 📄 GenAI Compliance Document Summarizer — RAG with Local LLM
+# 📄 GenAI Compliance Document Summarizer + RAG Assistant
 
-## 📌 Project Overview
+## 🔷 Project Overview
 
-This project implements a Generative AI powered document summarization system using a Retrieval Augmented Generation (RAG) architecture with a local Large Language Model.
+This project demonstrates a practical, end-to-end **Generative AI + RAG (Retrieval Augmented Generation)** system that can read compliance documents (PDF), understand their contents, and provide structured summaries and document-grounded answers through an interactive UI.
 
-The system processes long compliance or policy documents and produces structured summaries by retrieving the most relevant content chunks and passing them to a local LLM for summarization.
+The system is designed to simulate how organizations can safely analyze regulatory and compliance documents using **local open-source models**, ensuring privacy, control, and zero external data leakage.
 
-The design prioritizes privacy, explainability, and offline capability — making it suitable for compliance and regulated environments.
-
----
-
-## 🎯 Objective
-
-To automatically summarize long compliance documents into structured, readable summaries while ensuring:
-
-- Data privacy
-- No cloud dependency
-- Controlled inference pipeline
+Unlike general chatbots, this assistant answers strictly from the uploaded document using embeddings + vector search + local LLM summarization.
 
 ---
 
-## 🧠 Why Generative AI?
+## 🎯 Problem This Project Solves
 
-Generative AI models understand context and generate human-like text. They are well suited for:
+Compliance and regulatory documents are:
 
-- Summarization
-- Policy interpretation
-- Knowledge extraction
+* Long
+* Dense
+* Hard to review quickly
+* Risky if misinterpreted
 
----
+Manual reading is time-consuming and error-prone.
 
-## 🏗️ System Architecture
+This system enables:
 
-Pipeline implemented:
-
-Document → Text Extraction → Chunking → Embeddings → FAISS Vector Store → Top-K Retrieval → Local LLM → Structured Summary
-
----
-
-## ⚙️ Detailed Workflow
-
-### 1️⃣ Document Ingestion
-PDF compliance document loaded and text extracted.
-
-### 2️⃣ Text Chunking
-Large text split into smaller chunks to improve retrieval precision.
-
-### 3️⃣ Embedding Generation
-Each chunk converted into a semantic vector representation.
-
-### 4️⃣ FAISS Vector Store
-All embeddings stored in FAISS index for fast similarity search.
-
-### 5️⃣ Top-K Retrieval
-For a given query, most relevant chunks retrieved using vector similarity.
-
-### 6️⃣ Local LLM Summarization
-Retrieved chunks passed to local LLM (BART model) to generate structured summary.
+* Fast document summarization
+* Context-based question answering
+* Risk and policy extraction
+* Controlled, document-grounded responses
 
 ---
 
-## 🤖 Models Used
+## 🧠 Core GenAI Architecture Used
 
-### facebook/bart-large-cnn
-Transformer-based summarization model optimized for long text summarization tasks.
+This project implements a **Local RAG Pipeline**:
 
-Chosen because:
-- High summarization quality
-- Stable local execution
-- No external API dependency
+PDF → Text Extraction → Chunking → Embeddings → FAISS Vector Store → Top-K Retrieval → Local LLM Summarization → Answer
 
----
+### Components:
 
-## 🔐 Why Local LLM Instead of Cloud API
+**PDF Parsing**
 
-- Sensitive document privacy
-- No data leakage risk
-- No API cost
-- Full pipeline control
-- Offline capability
+* PyMuPDF extracts full document text
 
----
+**Chunking**
 
-## 📊 Output
+* Text split into overlapping segments
+* Preserves semantic continuity
 
-System generates structured summaries highlighting:
+**Embeddings**
 
-- Compliance requirements
-- Deadlines
-- Penalties
-- Regulatory obligations
+* SentenceTransformer (MiniLM)
+* Converts text into semantic vectors
 
----
+**Vector Database**
 
-## 💼 Real-World Use Cases
+* FAISS index
+* Enables fast similarity search
 
-- Compliance review automation
-- Legal document summarization
-- Policy analysis
-- Audit preparation
+**Retrieval**
+
+* Top-K most relevant chunks selected per query
+
+**Local LLM**
+
+* facebook/bart-large-cnn
+* Used for structured summarization of retrieved context
 
 ---
 
-## 🛠️ Tech Stack
+## 🤖 Why Local LLM Instead of Cloud API
 
-- Python
-- Transformers
-- FAISS
-- Sentence Embeddings
-- Local LLM
-- PDF parsers
+This design choice was intentional:
+
+* No external data transfer
+* Better for compliance scenarios
+* No API key dependency
+* Fully offline capable
+* Demonstrates open-source GenAI stack
+
+Ideal for regulated environments.
 
 ---
 
-## 📷 Screenshots to Include
+## 💬 Assistant Behavior (Important)
 
-- FAISS index size print
-- Chunk retrieval output
-- Final structured summary output
-- Architecture diagram
+This is **NOT a general chatbot**.
+
+It is a:
+
+> Document-Grounded Q&A Assistant
+
+It:
+
+✅ Answers only from uploaded document
+✅ Uses semantic retrieval
+✅ Summarizes relevant sections
+❌ Does not use internet knowledge
+❌ Does not generate creative opinions
+❌ Not a reasoning chat LLM
+
+---
+
+## 🖥️ Streamlit UI Features
+
+* PDF upload interface
+* RAG index builder button
+* One-click document summary
+* Document Q&A assistant
+* Conversation history
+* Interview/demo friendly layout
+* Dark-mode safe UI text
+* Processing spinners for transparency
+
+---
+
+## 📦 Tech Stack
+
+* Python
+* Streamlit
+* SentenceTransformers
+* FAISS
+* PyMuPDF
+* HuggingFace Transformers
+* BART Large CNN
+* NumPy
+
+---
+
+## 🚀 How to Run Locally
+
+```bash
+git clone <repo>
+cd GenAI_Compliance_Summarizer
+
+python -m venv venv
+source venv/bin/activate  # mac/linux
+venv\Scripts\activate     # windows
+
+pip install -r requirements.txt
+
+streamlit run ui_streamlit_app.py
+```
+
+---
+
+## 🌐 Live Demo
+
+(Insert your Streamlit Cloud URL here after deploy)
+
+---
+
+## 🧪 Example Questions You Can Ask
+
+* What are the reporting requirements?
+* What are compliance risks mentioned?
+* What penalties are described?
+* What controls are required?
+* Summarize risk management section
+* What actions are prohibited?
+
+---
+
+## 📚 Concepts Demonstrated
+
+* Generative AI workflow
+* RAG architecture
+* Embedding search
+* Vector databases
+* Document chunking strategy
+* Local LLM inference
+* Context-grounded generation
+* Compliance AI use cases
 
 ---
 
 ## 👤 Author
 
-Mayank Nagar — GenAI / RAG Practitioner
+Mayank Nagar
+AI + ML + Cloud Systems
+© 2026
