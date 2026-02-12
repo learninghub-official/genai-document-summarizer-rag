@@ -122,45 +122,30 @@
 
 
 # lighter version of summarizer model for cloud deployment
-
 import fitz  # PyMuPDF
 import numpy as np
 import faiss
 
 from sentence_transformers import SentenceTransformer
-from transformers import pipeline
 
-# ---------------------------------------------------
-# Global Models (Load Once — Cloud Safe)
-# ---------------------------------------------------
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 
-EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
 
-SUMMARIZER = pipeline(
-    "summarization",
-    model="sshleifer/distilbart-cnn-12-6"   # lighter than bart-large-cnn
-)
-
-# ---------------------------------------------------
+# --------------------------------
 # PDF Extraction
-# ---------------------------------------------------
-
+# --------------------------------
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     text = ""
-
     for page in doc:
         text += page.get_text()
-
     return text
 
 
-# ---------------------------------------------------
+# --------------------------------
 # Chunking
-# ---------------------------------------------------
-
+# --------------------------------
 def chunk_text(text, chunk_size=500, overlap=100):
-
     chunks = []
     start = 0
 
@@ -172,10 +157,9 @@ def chunk_text(text, chunk_size=500, overlap=100):
     return chunks
 
 
-# ---------------------------------------------------
+# --------------------------------
 # RAG Engine
-# ---------------------------------------------------
-
+# --------------------------------
 class RAGEngine:
 
     def __init__(self, pdf_path):
@@ -187,55 +171,81 @@ class RAGEngine:
         self.chunks = chunk_text(text)
 
         # Step 3 — Embeddings
-        embeddings = EMBED_MODEL.encode(
-            self.chunks,
-            batch_size=32,
-            show_progress_bar=False
-        )
+        self.embed_model = SentenceTransformer("all-MiniLM-L6-v2")
+        embeddings = self.embed_model.encode(self.chunks)
 
-        # Step 4 — FAISS
         dim = embeddings.shape[1]
         self.index = faiss.IndexFlatL2(dim)
         self.index.add(np.array(embeddings))
 
-    # ---------------------------------------------------
-    # Retrieval
-    # ---------------------------------------------------
+        # Step 4 — Summarizer (lazy load later)
+        self.summarizer = None
 
+
+    # --------------------------------
+    # Lazy summarizer loader (cloud-safe)
+    # --------------------------------
+    def get_summarizer(self):
+
+        if self.summarizer is None:
+
+            model_name = "sshleifer/distilbart-cnn-12-6"
+
+            tokenizer = AutoTokenizer.from_pretrained(model_name)
+            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
+
+            self.summarizer = pipeline(
+                task="summarization",
+                model=model,
+                tokenizer=tokenizer
+            )
+
+        return self.summarizer
+
+
+    # --------------------------------
+    # Retrieve top chunks
+    # --------------------------------
     def retrieve(self, query, top_k=3):
 
-        q_emb = EMBED_MODEL.encode([query])
+        q_emb = self.embed_model.encode([query])
         distances, idx = self.index.search(np.array(q_emb), top_k)
 
         return [self.chunks[i] for i in idx[0]]
 
-    # ---------------------------------------------------
-    # Ask Question
-    # ---------------------------------------------------
 
+    # --------------------------------
+    # Ask Question
+    # --------------------------------
     def ask(self, question):
 
         top_chunks = self.retrieve(question, top_k=3)
         context = " ".join(top_chunks)
 
-        result = SUMMARIZER(
+        summarizer = self.get_summarizer()
+
+        result = summarizer(
             context,
             max_length=120,
             min_length=30,
             do_sample=False
         )
 
-        return "Based on the document: " + result[0]["summary_text"]
+        answer = result[0]["summary_text"]
 
-    # ---------------------------------------------------
+        return f"Based on the document: {answer}"
+
+
+    # --------------------------------
     # Full Summary
-    # ---------------------------------------------------
-
+    # --------------------------------
     def summarize(self):
+
+        summarizer = self.get_summarizer()
 
         combined = " ".join(self.chunks[:5])
 
-        result = SUMMARIZER(
+        result = summarizer(
             combined,
             max_length=200,
             min_length=60,
@@ -245,9 +255,8 @@ class RAGEngine:
         return result[0]["summary_text"]
 
 
-# ---------------------------------------------------
+# --------------------------------
 # UI Helper
-# ---------------------------------------------------
-
+# --------------------------------
 def run_rag_pipeline(pdf_path):
     return RAGEngine(pdf_path)
