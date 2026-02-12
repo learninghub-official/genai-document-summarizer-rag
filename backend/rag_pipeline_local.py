@@ -122,13 +122,13 @@
 
 
 # lighter version of summarizer model for cloud deployment
-import fitz  # PyMuPDF
+import fitz
 import numpy as np
 import faiss
 
 from sentence_transformers import SentenceTransformer
 
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 
 
 # --------------------------------
@@ -164,13 +164,10 @@ class RAGEngine:
 
     def __init__(self, pdf_path):
 
-        # Step 1 — Extract
         text = extract_text_from_pdf(pdf_path)
-
-        # Step 2 — Chunk
         self.chunks = chunk_text(text)
 
-        # Step 3 — Embeddings
+        # Embeddings
         self.embed_model = SentenceTransformer("all-MiniLM-L6-v2")
         embeddings = self.embed_model.encode(self.chunks)
 
@@ -178,33 +175,49 @@ class RAGEngine:
         self.index = faiss.IndexFlatL2(dim)
         self.index.add(np.array(embeddings))
 
-        # Step 4 — Summarizer (lazy load later)
-        self.summarizer = None
+        # Summarization model (lazy load)
+        self.tokenizer = None
+        self.model = None
 
 
     # --------------------------------
-    # Lazy summarizer loader (cloud-safe)
+    # Load summarizer safely
     # --------------------------------
-    def get_summarizer(self):
+    def load_summarizer(self):
 
-        if self.summarizer is None:
-
+        if self.model is None:
             model_name = "sshleifer/distilbart-cnn-12-6"
 
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
-
-            self.summarizer = pipeline(
-                task="summarization",
-                model=model,
-                tokenizer=tokenizer
-            )
-
-        return self.summarizer
+            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+            self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
 
 
     # --------------------------------
-    # Retrieve top chunks
+    # Generate summary helper
+    # --------------------------------
+    def generate_summary(self, text, max_len=200, min_len=60):
+
+        self.load_summarizer()
+
+        inputs = self.tokenizer(
+            text,
+            return_tensors="pt",
+            truncation=True,
+            max_length=1024
+        )
+
+        output = self.model.generate(
+            **inputs,
+            max_length=max_len,
+            min_length=min_len,
+            do_sample=False
+        )
+
+        return self.tokenizer.decode(output[0], skip_special_tokens=True)
+
+
+    # --------------------------------
+    # Retrieve
     # --------------------------------
     def retrieve(self, query, top_k=3):
 
@@ -219,40 +232,22 @@ class RAGEngine:
     # --------------------------------
     def ask(self, question):
 
-        top_chunks = self.retrieve(question, top_k=3)
-        context = " ".join(top_chunks)
+        context_chunks = self.retrieve(question, top_k=3)
+        context = " ".join(context_chunks)
 
-        summarizer = self.get_summarizer()
-
-        result = summarizer(
-            context,
-            max_length=120,
-            min_length=30,
-            do_sample=False
-        )
-
-        answer = result[0]["summary_text"]
+        answer = self.generate_summary(context, max_len=120, min_len=30)
 
         return f"Based on the document: {answer}"
 
 
     # --------------------------------
-    # Full Summary
+    # Full Document Summary
     # --------------------------------
     def summarize(self):
 
-        summarizer = self.get_summarizer()
-
         combined = " ".join(self.chunks[:5])
 
-        result = summarizer(
-            combined,
-            max_length=200,
-            min_length=60,
-            do_sample=False
-        )
-
-        return result[0]["summary_text"]
+        return self.generate_summary(combined, max_len=220, min_len=80)
 
 
 # --------------------------------
